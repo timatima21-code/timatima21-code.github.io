@@ -498,35 +498,38 @@
             const sequences = sets.filter(s => s.type === 'sequence');
 
             // --- Detect Fours ---
+            // Rule Interpretation Update:
+            // "Single Four" / "Double Four" is established if the hand contains 4 cards of the same number/color.
+            // Usage structure (Triplet+Single vs 4 Singles) does not matter for the definition of the Yaku,
+            // as long as the total hand forms a valid Agari (Sum 10).
+
             let singleFour7 = 0;
             let singleFourNormal = 0;
             let doubleFour = 0;
 
-            const tripletCounts = {}; // "red:5" -> count
-            triplets.forEach(t => {
-                const key = `${t.color}:${t.number}`;
-                tripletCounts[key] = (tripletCounts[key] || 0) + 1;
+            const countMap = {};
+            allCards.forEach(c => {
+                const k = `${c.color}:${c.number}`;
+                countMap[k] = (countMap[k] || 0) + 1;
             });
 
-            const confirmedFours = []; // keys
-            const confirmedTriplets = []; // keys
-
-            for (const key of Object.keys(tripletCounts)) {
-                const [c, n] = key.split(':');
-                const num = parseInt(n);
-
-                const hasSingle = singles.some(s => s.color === c && s.number === num);
-
-                if (hasSingle) {
-                    confirmedFours.push({ color: c, number: num });
-                } else {
-                    confirmedTriplets.push({ color: c, number: num });
+            const confirmedFours = [];
+            for (const k in countMap) {
+                if (countMap[k] === 4) {
+                    const [color, numStr] = k.split(':');
+                    confirmedFours.push({ color, number: parseInt(numStr) });
                 }
             }
 
             if (confirmedFours.length >= 2) {
-                yaku.push('ダブルフォー');
-                points += 10;
+                const hasSeven = confirmedFours.some(f => f.number === 7);
+                if (hasSeven) {
+                    yaku.push('ダブルフォー(7)');
+                    points += 11;
+                } else {
+                    yaku.push('ダブルフォー(7以外)');
+                    points += 10;
+                }
                 doubleFour = 1;
             } else if (confirmedFours.length === 1) {
                 const f = confirmedFours[0];
@@ -542,7 +545,18 @@
             }
 
             // --- Detect Double Threes ---
-            const activeTriplets = confirmedTriplets.map(t => ({ ...t }));
+            // Triplets logic relies on SETS formed in the partition.
+            // However, we must exclude triplets that are actually part of a Four.
+            // If we have 4 cards (Four), and the partition uses 3 of them as a Triplet, 
+            // that Triplet is "consumed" by the Four Yaku and cannot count as a Single Three / Double Three component?
+            // Usually higher Yaku absorbs lower Yaku components.
+            // Implementation: Filter out triplets that match a confirmed Four.
+
+            const activeTriplets = triplets.filter(t => {
+                // Check if this triplet corresponds to a 4-of-a-kind in hand
+                return !confirmedFours.some(f => f.color === t.color && f.number === t.number);
+            });
+
 
             if (doubleFour === 0) {
                 if (activeTriplets.length === 2) {
@@ -613,54 +627,42 @@
             }
 
             // --- Serial Pairs ---
-            // Rule (Update):
-            // Serial Pair (4 runs): Contains 2 sets of 4-consecutive numbers. Color ignored. 3 points.
-            // Serial Pair (3 runs): Contains 2 sets of 3-consecutive numbers. Color ignored. 2 points. (Invalid if 4-run exists)
+            // Rule (Update 4):
+            // Serial Pair (4 runs): Contains 2 sets of [n, n+1, n+2, n+3]. Check raw card counts. 3 points.
+            // Serial Pair (3 runs): Contains 2 sets of [n, n+1, n+2]. Check raw card counts. 2 points.
 
             let hasSerial4 = false;
 
-            // Check for Serial Pair (4 runs)
-            // Partition 8 numbers into two 4-consecutive sets
-            const allNums = allCards.map(c => c.number).sort((a, b) => a - b);
+            // Re-map counts by number (color ignored)
+            const numCounts = {};
+            allCards.forEach(c => numCounts[c.number] = (numCounts[c.number] || 0) + 1);
 
-            function checkTwo4Runs(nums) {
-                // Must have 8 numbers
-                // First run must start at nums[0] (min value)
-                const start = nums[0];
-                const run1 = [start, start + 1, start + 2, start + 3];
+            // Check 4-runs (needs 2 of each number in range)
+            for (let start = 1; start <= 4; start++) {
+                if ((numCounts[start] || 0) >= 2 &&
+                    (numCounts[start + 1] || 0) >= 2 &&
+                    (numCounts[start + 2] || 0) >= 2 &&
+                    (numCounts[start + 3] || 0) >= 2) {
 
-                // Check if run1 exists in nums
-                const pool = [...nums];
-                for (const v of run1) {
-                    const idx = pool.indexOf(v);
-                    if (idx === -1) return false;
-                    pool.splice(idx, 1);
+                    yaku.push('シリアルペア(4連番)');
+                    points += 3;
+                    hasSerial4 = true;
+                    break;
                 }
-
-                // Check if remaining 4 are consecutive
-                if (pool.length !== 4) return false;
-                const start2 = pool[0];
-                const run2 = [start2, start2 + 1, start2 + 2, start2 + 3];
-                for (let i = 0; i < 4; i++) {
-                    if (pool[i] !== run2[i]) return false;
-                }
-                return true;
-            }
-
-            if (checkTwo4Runs(allNums)) {
-                yaku.push('シリアルペア(4連番)');
-                points += 3;
-                hasSerial4 = true;
             }
 
             if (!hasSerial4) {
-                // Serial Pair (3 runs)
-                // "Contains 2 sets of 3-consecutive numbers". Color ignored.
-                // Our partition sequences are guaranteed to be 3-consecutive (valid sequences).
-                // Just count them.
-                if (sequences.length >= 2) {
-                    yaku.push('シリアルペア(3連番)');
-                    points += 2;
+                // Check 3-runs (needs 2 of each number in range)
+                for (let start = 1; start <= 5; start++) {
+                    if ((numCounts[start] || 0) >= 2 &&
+                        (numCounts[start + 1] || 0) >= 2 &&
+                        (numCounts[start + 2] || 0) >= 2) {
+
+                        yaku.push('シリアルペア(3連番)');
+                        points += 2;
+                        // Assuming max 1 Serial Pair per hand (since only 8 cards)
+                        break;
+                    }
                 }
             }
 
