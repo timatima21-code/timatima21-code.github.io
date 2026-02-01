@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ツクルテン補助ツール</title>
+    <style>
+        :root {
+            --red-card: #e57373;
+            --blue-card: #64b5f6;
+            --bg-color: #f5f5f7;
+            --text-color: #333;
+            --card-radius: 8px;
+            --shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            --primary-btn: #4caf50;
+            --danger-btn: #f44336;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 10px 0;
+            font-size: 1.5rem;
+        }
+
+        /* Control Panel */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-item {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            font-size: 0.9rem;
+        }
+
+        .control-item input {
+            margin-right: 5px;
+            transform: scale(1.2);
+        }
+
+        .control-item label {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Hand Area */
+        .hand-container {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+            background: #fff;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            justify-content: center;
+            min-height: 80px;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+
+        .card-slot {
+            width: 40px;
+            height: 60px;
+            border: 2px dashed #ccc;
+            border-radius: var(--card-radius);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+            position: relative;
+            background-color: #fafafa;
+            transition: all 0.2s;
+        }
+
+        .card-slot.selected {
+            border-color: #ff9800;
+            box-shadow: 0 0 0 2px #ff9800;
+            z-index: 10;
+        }
+
+        .card-slot.filled {
+            border-style: solid;
+            color: white;
+            text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .card-red {
+            background-color: var(--red-card) !important;
+            border-color: #d32f2f !important;
+        }
+
+        .card-blue {
+            background-color: var(--blue-card) !important;
+            border-color: #1976d2 !important;
+        }
+
+        /* Card Picker */
+        .picker {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .picker-btn {
+            aspect-ratio: 1;
+            border: none;
+            border-radius: var(--card-radius);
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: transform 0.1s;
+        }
+
+        .picker-btn:active {
+            transform: scale(0.95);
+        }
+
+        .picker-btn.red {
+            background-color: var(--red-card);
+        }
+
+        .picker-btn.blue {
+            background-color: var(--blue-card);
+        }
+
+        /* Action Buttons */
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 20px;
+            font-size: 1rem;
+            color: white;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-reset {
+            background-color: var(--danger-btn);
+        }
+
+        .btn-calc {
+            background-color: var(--primary-btn);
+        }
+
+        /* Results */
+        .results {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .result-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 5px solid #ccc;
+        }
+
+        .result-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mini-card {
+            width: 24px;
+            height: 36px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .score-info {
+            text-align: right;
+        }
+
+        .score-val {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #d32f2f;
+        }
+
+        .yaku-list {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .no-agari {
+            text-align: center;
+            color: #888;
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>ツクルテン補助</h1>
+
+    <div class="controls">
+        <label class="control-item">
+            <input type="checkbox" id="is-parent"> 親 (3点)
+        </label>
+        <label class="control-item">
+            <input type="checkbox" id="is-closed"> クローズ (1点)
+        </label>
+    </div>
+
+    <!-- Hand Input -->
+    <div class="hand-container" id="hand-container">
+        <!-- Generated by JS -->
+    </div>
+
+    <!-- Card Picker -->
+    <div class="picker">
+        <!-- Red 1-7 -->
+        <button class="picker-btn red" onclick="addCard('red', 1)">1</button>
+        <button class="picker-btn red" onclick="addCard('red', 2)">2</button>
+        <button class="picker-btn red" onclick="addCard('red', 3)">3</button>
+        <button class="picker-btn red" onclick="addCard('red', 4)">4</button>
+        <button class="picker-btn red" onclick="addCard('red', 5)">5</button>
+        <button class="picker-btn red" onclick="addCard('red', 6)">6</button>
+        <button class="picker-btn red" onclick="addCard('red', 7)">7</button>
+    </div>
+    <div class="picker">
+        <!-- Blue 1-7 -->
+        <button class="picker-btn blue" onclick="addCard('blue', 1)">1</button>
+        <button class="picker-btn blue" onclick="addCard('blue', 2)">2</button>
+        <button class="picker-btn blue" onclick="addCard('blue', 3)">3</button>
+        <button class="picker-btn blue" onclick="addCard('blue', 4)">4</button>
+        <button class="picker-btn blue" onclick="addCard('blue', 5)">5</button>
+        <button class="picker-btn blue" onclick="addCard('blue', 6)">6</button>
+        <button class="picker-btn blue" onclick="addCard('blue', 7)">7</button>
+    </div>
+
+    <div class="actions">
+        <!-- Logic runs automatically on update, but Reset is useful -->
+        <button class="btn btn-reset" onclick="resetHand()">リセット</button>
+    </div>
+
+    <h2>あがり候補</h2>
+    <div class="results" id="results">
+        <div class="no-agari">手札を入力してください</div>
+    </div>
+
+    <script>
+        // --- Core Logic ---
+
+        class Card {
+            constructor(color, number) {
+                this.color = color; // 'red' or 'blue'
+                this.number = number; // 1-7
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+            // For sorting/comparison
+            get value() { return (this.color === 'red' ? 10 : 20) + this.number; }
+            toString() { return `${this.color}:${this.number}`; }
+        }
+
+        // State
+        let hand = Array(7).fill(null);
+        let selectedSlot = 0; // 0-6, current target for input
+
+        // --- Solver ---
+
+        function solve(currentHand, isParent, isClosed) {
+            // Returns array of { card: Card, score: number, yaku: string[] }
+
+            // 1. Generate all possible 8th cards (Red 1-7, Blue 1-7)
+            const candidates = [];
+            ['red', 'blue'].forEach(color => {
+                for (let n = 1; n <= 7; n++) {
+                    const candidate = new Card(color, n);
+                    // Check if deck has remaining (Total 4 each)
+
+                    const countInHand = currentHand.filter(c => c && c.color === color && c.number === n).length;
+                    if (countInHand < 4) {
+                        candidates.push(candidate);
+                    }
+                }
+            });
+
+            const results = [];
+
+            for (const cand of candidates) {
+                const fullHand = [...currentHand, cand];
+                if (checkAgari(fullHand)) {
+                    const scoreResult = calculateScore(fullHand, isParent, isClosed);
+                    results.push({
+                        card: cand,
+                        score: scoreResult.total,
+                        yaku: scoreResult.yakuNames
+                    });
+                }
+            }
+
+            // sort by score desc
+            return results.sort((a, b) => b.score - a.score);
+        }
+
+        // The core recursive checker
+        function checkAgari(cards8) {
+            // Special Case: God Ten (All 2s or All 5s)
+            const numCounts = {};
+            cards8.forEach(c => numCounts[c.number] = (numCounts[c.number] || 0) + 1);
+            if (numCounts[2] === 8 || numCounts[5] === 8) return true;
+
+            // Normal Sum check
+            return canSumTo10(cards8);
+        }
+
+        function canSumTo10(cards) {
+            // Sort for consistent processing
+            const sorted = [...cards].sort((a, b) => a.value - b.value);
+            return backtrack(sorted, 0); // 0 is current sum
+        }
+
+        function backtrack(remainingCards, currentSum) {
+            if (remainingCards.length === 0) {
+                return currentSum === 10;
+            }
+
+            const first = remainingCards[0];
+
+            // Option A: Use 'first' as single
+            if (backtrack(remainingCards.slice(1), currentSum + first.number)) return true;
+
+            // Option B: Search for Triplets involving 'first'
+            // Need 2 more of same color/number
+            const sameIdx1 = remainingCards.findIndex((c, i) => i > 0 && c.color === first.color && c.number === first.number);
+            if (sameIdx1 !== -1) {
+                const sameIdx2 = remainingCards.findIndex((c, i) => i > sameIdx1 && c.color === first.color && c.number === first.number);
+                if (sameIdx2 !== -1) {
+                    // Found Triplet
+                    const nextCards = remainingCards.filter((c, i) => i !== 0 && i !== sameIdx1 && i !== sameIdx2);
+                    // Triplet value 0
+                    if (backtrack(nextCards, currentSum + 0)) return true;
+                }
+            }
+
+            // Option C: Search for Sequences involving 'first'
+            // Red sequence: max value. Blue sequence: min value.
+            // Needs first.number + 1, + 2 with same color.
+            if (first.number <= 5) { // Can form sequence
+                const n2 = first.number + 1;
+                const n3 = first.number + 2;
+                const idx2 = remainingCards.findIndex((c, i) => i > 0 && c.color === first.color && c.number === n2);
+                if (idx2 !== -1) {
+                    const idx3 = remainingCards.findIndex((c, i) => i > 0 && i !== idx2 && c.color === first.color && c.number === n3);
+                    if (idx3 !== -1) {
+                        const nextCards = remainingCards.filter((c, i) => i !== 0 && i !== idx2 && i !== idx3);
+
+                        let val = 0;
+                        if (first.color === 'red') val = n3; // Max
+                        else val = first.number; // Min (Blue)
+
+                        if (backtrack(nextCards, currentSum + val)) return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // --- Scorer ---
+
+        function getWinningPartitions(cards8) {
+            const partitions = [];
+            const sorted = [...cards8].sort((a, b) => a.value - b.value);
+
+            // Recursive generator
+            function findPartitions(currentCards, currentSets, currentSinglesSum) {
+                if (currentCards.length === 0) {
+                    if (currentSinglesSum === 10) {
+                        partitions.push([...currentSets]);
+                    }
+                    return;
+                }
+
+                const first = currentCards[0];
+
+                // 1. As Single
+                findPartitions(currentCards.slice(1), currentSets, currentSinglesSum + first.number);
+
+                // 2. As Triplet (Value 0)
+                const s1 = currentCards.findIndex((c, i) => i > 0 && c.color === first.color && c.number === first.number);
+                if (s1 !== -1) {
+                    const s2 = currentCards.findIndex((c, i) => i > s1 && c.color === first.color && c.number === first.number);
+                    if (s2 !== -1) {
+                        const next = currentCards.filter((c, i) => i !== 0 && i !== s1 && i !== s2);
+                        const newSet = { type: 'triplet', color: first.color, number: first.number, cards: [first, currentCards[s1], currentCards[s2]] };
+                        findPartitions(next, [...currentSets, newSet], currentSinglesSum);
+                    }
+                }
+
+                // 3. As Sequence
+                if (first.number <= 5) {
+                    const n2 = first.number + 1;
+                    const n3 = first.number + 2;
+                    const idx2 = currentCards.findIndex((c, i) => i > 0 && c.color === first.color && c.number === n2);
+                    if (idx2 !== -1) {
+                        const idx3 = currentCards.findIndex((c, i) => i > 0 && i !== idx2 && c.color === first.color && c.number === n3);
+                        if (idx3 !== -1) {
+                            const next = currentCards.filter((c, i) => i !== 0 && i !== idx2 && i !== idx3);
+                            const val = (first.color === 'red') ? n3 : first.number;
+                            const newSet = { type: 'sequence', color: first.color, start: first.number, cards: [first, currentCards[idx2], currentCards[idx3]] };
+                            findPartitions(next, [...currentSets, newSet], currentSinglesSum + val);
+                        }
+                    }
+                }
+            }
+
+            findPartitions(sorted, [], 0);
+            return partitions;
+        }
+
+        function calculateScore(cards8, isParent, isClosed) {
+            // God Ten Check
+            const numCounts = {};
+            cards8.forEach(c => numCounts[c.number] = (numCounts[c.number] || 0) + 1);
+            if (numCounts[2] === 8) return { total: 90, yakuNames: ['ゴッドテン(2)'] };
+            if (numCounts[5] === 8) return { total: 90, yakuNames: ['ゴッドテン(5)'] };
+
+            const validPartitions = getWinningPartitions(cards8);
+            if (validPartitions.length === 0) return { total: 0, yakuNames: [] };
+
+            let maxScore = -1;
+            let maxInfo = null;
+
+            for (const sets of validPartitions) {
+                // Determine Singles
+                const setCards = sets.flatMap(s => s.cards);
+                const setIds = new Set(setCards.map(c => c.id));
+                const singles = cards8.filter(c => !setIds.has(c.id));
+
+                const scoreInfo = evaluateYaku(cards8, sets, singles, isParent, isClosed);
+                if (scoreInfo.total > maxScore) {
+                    maxScore = scoreInfo.total;
+                    maxInfo = scoreInfo;
+                }
+            }
+            return maxInfo;
+        }
+
+        function evaluateYaku(allCards, sets, singles, isParent, isClosed) {
+            const yaku = [];
+            let points = 0;
+
+            if (isParent) { yaku.push('基本点(親)'); points += 3; }
+            else { yaku.push('基本点(子)'); points += 1; }
+
+            if (isClosed) { yaku.push('クローズ'); points += 1; }
+
+            const triplets = sets.filter(s => s.type === 'triplet');
+            const sequences = sets.filter(s => s.type === 'sequence');
+
+            // --- Detect Fours ---
+            let singleFour7 = 0;
+            let singleFourNormal = 0;
+            let doubleFour = 0;
+
+            const tripletCounts = {}; // "red:5" -> count
+            triplets.forEach(t => {
+                const key = `${t.color}:${t.number}`;
+                tripletCounts[key] = (tripletCounts[key] || 0) + 1;
+            });
+
+            const confirmedFours = []; // keys
+            const confirmedTriplets = []; // keys
+
+            for (const key of Object.keys(tripletCounts)) {
+                const [c, n] = key.split(':');
+                const num = parseInt(n);
+
+                const hasSingle = singles.some(s => s.color === c && s.number === num);
+
+                if (hasSingle) {
+                    confirmedFours.push({ color: c, number: num });
+                } else {
+                    confirmedTriplets.push({ color: c, number: num });
+                }
+            }
+
+            if (confirmedFours.length >= 2) {
+                yaku.push('ダブルフォー');
+                points += 10;
+                doubleFour = 1;
+            } else if (confirmedFours.length === 1) {
+                const f = confirmedFours[0];
+                if (f.number === 7) {
+                    yaku.push('シングルフォー(7)');
+                    points += 3;
+                    singleFour7 = 1;
+                } else {
+                    yaku.push('シングルフォー(7以外)');
+                    points += 2;
+                    singleFourNormal = 1;
+                }
+            }
+
+            // --- Detect Double Threes ---
+            const activeTriplets = confirmedTriplets.map(t => ({ ...t }));
+
+            if (doubleFour === 0) {
+                if (activeTriplets.length === 2) {
+                    const t1 = activeTriplets[0];
+                    const t2 = activeTriplets[1];
+                    const isSameNum = t1.number === t2.number;
+
+                    if (isSameNum) {
+                        if (t1.number === 7) {
+                            yaku.push('ダブルスリー(7)同数字');
+                            points += 5;
+                        } else {
+                            yaku.push('ダブルスリー(7以外)同数字');
+                            points += 4;
+                        }
+                    } else {
+                        // Double Three Different (Must not be 7) ??
+                        // Rules just say "Double Three Different", "Double Three (7) Same" etc.
+                        // Assuming "Different Numbers" allows 7? 
+                        // "Single Three(7) ... Invalid if Double Three Different...".
+                        // So Double Three Diff takes precedence.
+                        if (t1.number !== t2.number) {
+                            yaku.push('ダブルスリー異数字');
+                            points += 3;
+                        }
+                    }
+                }
+            }
+
+            // --- Detect Single Threes ---
+            // Only if Double/Quad checks didn't consume them all?
+            // Actually, Double Threes consumes the PAIR of triplets. 
+            // If we have 2 active triplets but processed as Double, we don't process as Single.
+            // But if we have 1 active triplet?
+
+            const hasDoubleFour = doubleFour > 0;
+            const hasDoubleThree = (!hasDoubleFour && activeTriplets.length >= 2);
+
+            if (!hasDoubleThree) {
+                // Determine blocking flags for Singles
+                // Just use detected yaku strings for convenience
+
+                activeTriplets.forEach(t => {
+                    if (t.number === 7) {
+                        // Single Three (7)
+                        let blocked = false;
+                        if (singleFour7) blocked = true;
+                        // if (yaku.includes('ダブルスリー...')) is implicitly false here due to !hasDoubleThree
+                        if (doubleFour) blocked = true;
+
+                        if (!blocked) {
+                            yaku.push('シングルスリー(7)');
+                            points += 2;
+                        }
+
+                    } else {
+                        // Single Three (not 7)
+                        let blocked = false;
+                        if (singleFourNormal) blocked = true;
+                        if (doubleFour) blocked = true;
+
+                        if (!blocked) {
+                            yaku.push(`シングルスリー(${t.number})`);
+                            points += 1;
+                        }
+                    }
+                });
+            }
+
+            // --- Serial Pairs ---
+            // Rule (Update):
+            // Serial Pair (4 runs): Contains 2 sets of 4-consecutive numbers. Color ignored. 3 points.
+            // Serial Pair (3 runs): Contains 2 sets of 3-consecutive numbers. Color ignored. 2 points. (Invalid if 4-run exists)
+
+            let hasSerial4 = false;
+
+            // Check for Serial Pair (4 runs)
+            // Partition 8 numbers into two 4-consecutive sets
+            const allNums = allCards.map(c => c.number).sort((a, b) => a - b);
+
+            function checkTwo4Runs(nums) {
+                // Must have 8 numbers
+                // First run must start at nums[0] (min value)
+                const start = nums[0];
+                const run1 = [start, start + 1, start + 2, start + 3];
+
+                // Check if run1 exists in nums
+                const pool = [...nums];
+                for (const v of run1) {
+                    const idx = pool.indexOf(v);
+                    if (idx === -1) return false;
+                    pool.splice(idx, 1);
+                }
+
+                // Check if remaining 4 are consecutive
+                if (pool.length !== 4) return false;
+                const start2 = pool[0];
+                const run2 = [start2, start2 + 1, start2 + 2, start2 + 3];
+                for (let i = 0; i < 4; i++) {
+                    if (pool[i] !== run2[i]) return false;
+                }
+                return true;
+            }
+
+            if (checkTwo4Runs(allNums)) {
+                yaku.push('シリアルペア(4連番)');
+                points += 3;
+                hasSerial4 = true;
+            }
+
+            if (!hasSerial4) {
+                // Serial Pair (3 runs)
+                // "Contains 2 sets of 3-consecutive numbers". Color ignored.
+                // Our partition sequences are guaranteed to be 3-consecutive (valid sequences).
+                // Just count them.
+                if (sequences.length >= 2) {
+                    yaku.push('シリアルペア(3連番)');
+                    points += 2;
+                }
+            }
+
+            // --- Global ---
+            const redCount = allCards.filter(c => c.color === 'red').length;
+            const blueCount = allCards.filter(c => c.color === 'blue').length;
+            if (redCount === 4 && blueCount === 4) {
+                yaku.push('ハーフカラー');
+                points += 1;
+            }
+
+            const sevens = allCards.filter(c => c.number === 7).length;
+            if (sevens === 1) {
+                yaku.push('ワンセブン');
+                points += 1;
+            }
+
+            if (allCards.every(c => c.number <= 4)) {
+                yaku.push('アンダーフォー');
+                points += 2;
+            }
+
+            if (redCount === 8) {
+                yaku.push('シングルカラー(赤)');
+                points += 3;
+            }
+            if (blueCount === 8) {
+                yaku.push('シングルカラー(青)');
+                points += 3;
+            }
+
+            return { total: points, yakuNames: yaku };
+        }
+
+
+        // --- UI Interactions ---
+
+        function renderHand() {
+            const container = document.getElementById('hand-container');
+            container.innerHTML = '';
+            hand.forEach((card, index) => {
+                const slot = document.createElement('div');
+                slot.className = `card-slot ${index === selectedSlot ? 'selected' : ''} ${card ? 'filled' : ''}`;
+                if (card) {
+                    slot.classList.add(card.color === 'red' ? 'card-red' : 'card-blue');
+                    slot.textContent = card.number;
+                } else {
+                    slot.textContent = '+';
+                }
+                slot.onclick = () => selectSlot(index);
+                container.appendChild(slot);
+            });
+            updateResults();
+        }
+
+        function selectSlot(index) {
+            selectedSlot = index;
+            renderHand();
+        }
+
+        function addCard(color, number) {
+            hand[selectedSlot] = new Card(color, number);
+            // Auto advance
+            let nextSlot = -1;
+            for (let i = 0; i < 7; i++) {
+                if (!hand[i]) { nextSlot = i; break; }
+            }
+            if (nextSlot !== -1) {
+                selectedSlot = nextSlot;
+            }
+            renderHand();
+        }
+
+        function resetHand() {
+            hand = Array(7).fill(null);
+            selectedSlot = 0;
+            renderHand();
+        }
+
+        function updateResults() {
+            const container = document.getElementById('results');
+
+            const filledHand = hand.filter(c => c !== null);
+            if (filledHand.length < 7) {
+                container.innerHTML = '<div class="no-agari">手札を7枚入力してください</div>';
+                return;
+            }
+
+            const isParent = document.getElementById('is-parent').checked;
+            const isClosed = document.getElementById('is-closed').checked;
+
+            const results = solve(filledHand, isParent, isClosed);
+
+            if (results.length === 0) {
+                container.innerHTML = '<div class="no-agari">あがり候補なし</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            results.forEach(res => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'result-card';
+                const mini = document.createElement('div');
+                mini.className = `mini-card ${res.card.color === 'red' ? 'card-red' : 'card-blue'}`;
+                mini.textContent = res.card.number;
+                const text = document.createElement('span');
+                text.innerHTML = `<strong>${res.card.number}</strong> (${res.card.color === 'red' ? '赤' : '青'})`;
+                cardDiv.appendChild(mini);
+                cardDiv.appendChild(text);
+
+                const scoreDiv = document.createElement('div');
+                scoreDiv.className = 'score-info';
+                scoreDiv.innerHTML = `
+                    <div class="score-val">${res.score}点</div>
+                    <div class="yaku-list">${res.yaku.join(', ')}</div>
+                `;
+
+                item.appendChild(cardDiv);
+                item.appendChild(scoreDiv);
+                container.appendChild(item);
+            });
+        }
+
+        document.getElementById('is-parent').addEventListener('change', updateResults);
+        document.getElementById('is-closed').addEventListener('change', updateResults);
+
+        renderHand();
+    </script>
+</body>
+
+</html>
